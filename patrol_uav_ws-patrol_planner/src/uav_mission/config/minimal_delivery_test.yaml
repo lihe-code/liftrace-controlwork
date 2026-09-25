@@ -15,7 +15,9 @@ delivery:
   search_altitude: 1.0       # 搜索航线高度 (camera_init Z)
   approach_altitude: 0.6     # 逼近目标上方高度
   return_altitude: 1.0       # 返航航线高度
-  recovery_height: 0.85      # 投放后恢复飞行高度
+  recovery_height: 0.85      # 投放后恢复完成判定高度
+  standard_recovery_setpoint_height: 1.20  # 标准靶投后上升目标
+  cross_recovery_setpoint_height: 1.15     # 红十字/动态靶投后上升目标
   land_height: 0.05          # 降落高度
 
 # ---- 控制器全局参数（patrol_control 运行时 getParamCached 重读）----
@@ -37,7 +39,9 @@ switch:
   flag_landing_detect: 1
   auto_land: true            # 自动降落开启
 uav_vision:
-  recovery_height: 0.85      # 投放后恢复高度
+  recovery_height: 0.85      # patrol_control 恢复完成判定高度
+  standard_recovery_setpoint_height: 1.20
+  cross_recovery_setpoint_height: 1.15
   # 2026-09-23 实测安装：图像向右=-body_x（机尾方向），图像向下=+body_y（机体左侧）；
   # 与 launch 里 camera_quat_xyzw="0 1 0 0" 配套，旧的 [0,-1,-1,0] 已作废。
   # 本文件在 launch 末尾二次加载，会压过 vcl06_horizontal_control.yaml 里的旧值。
@@ -110,6 +114,10 @@ fast_planner_node:
 
 # ---- 任务管理器（最终位于 /navigation/mission_manager/*）----
 navigation:
+  planner_bridge:
+    target:
+      # 与 uav_vision/recovery_height 保持一致，覆盖共享档案的 0.95 m。
+      recovery_height: 0.85
   mission_manager:
     search:
       # 手动打点航线（仿照 corridor_waypoint_test.yaml 的 post_delivery_route 格式）

@@ -1571,6 +1571,10 @@ void LLController::load_params() {
         "uav_vision/release_permission_timeout", 0.25);
     external_recovery_height_ = nh_.param(
         "uav_vision/recovery_height", 0.95);
+    external_standard_recovery_setpoint_height_ = nh_.param(
+        "uav_vision/standard_recovery_setpoint_height", 1.20);
+    external_cross_recovery_setpoint_height_ = nh_.param(
+        "uav_vision/cross_recovery_setpoint_height", 1.15);
     mission_release_permission_topic_ = nh_.param<std::string>(
         "uav_vision/release_permission_state_topic",
         "/mission/release_permission_active");
@@ -1598,12 +1602,18 @@ void LLController::load_params() {
         !std::isfinite(drop_position_threshold_) ||
         !std::isfinite(drop_release_setpoint_height_) ||
         !std::isfinite(external_recovery_height_) ||
+        !std::isfinite(external_standard_recovery_setpoint_height_) ||
+        !std::isfinite(external_cross_recovery_setpoint_height_) ||
         drop_height_threshold <= 0.0 || drop_height_threshold > 1.0 ||
         drop_position_threshold_ <= 0.0 || drop_position_threshold_ > 1.0 ||
         drop_release_setpoint_height_ <= 0.05 ||
         drop_release_setpoint_height_ > drop_height_threshold ||
         external_recovery_height_ <= drop_height_threshold ||
-        external_recovery_height_ > align_height) {
+        external_recovery_height_ > align_height ||
+        external_standard_recovery_setpoint_height_ < external_recovery_height_ ||
+        external_standard_recovery_setpoint_height_ > 4.0 ||
+        external_cross_recovery_setpoint_height_ < external_recovery_height_ ||
+        external_cross_recovery_setpoint_height_ > 4.0) {
         ROS_FATAL("[DropSystem] invalid release/recovery geometry parameters");
         throw std::invalid_argument("invalid drop_system geometry parameters");
     }
@@ -1641,8 +1651,10 @@ void LLController::load_params() {
              mission_command_topic_.c_str());
     ROS_INFO("[PatrolControl] control_ready_topic: %s",
              control_ready_topic_.c_str());
-    ROS_INFO("[UavVision] external recovery handoff height: %.2f m",
-             external_recovery_height_);
+    ROS_INFO("[UavVision] external recovery handoff/setpoints: %.2f / %.2f / %.2f m",
+             external_recovery_height_,
+             external_standard_recovery_setpoint_height_,
+             external_cross_recovery_setpoint_height_);
     ROS_INFO(
         "[ExternalLanding] frame=%s detections=%s capture=%.2f "
         "handoff=%.2f land=%.2f "
@@ -2001,7 +2013,8 @@ bool LLController::DynamicProcess()
                 if(servo_complete.data){
                     ROS_INFO("\033[33m[CrossDetectionDone] servo_complete.data: %d\033[0m", servo_complete.data);
                     down_flag = false;
-                    align_height = 1.15;
+                    align_height = external_mission_mode_
+                        ? external_cross_recovery_setpoint_height_ : 1.15;
                     const double recovery_height = external_mission_mode_
                         ? external_recovery_height_ : 0.95;
                     if(uav_pose.pose.position.z >= recovery_height){
@@ -2336,7 +2349,8 @@ bool LLController::WayPointDetectDone()
             if(servo_complete.data){
                 ROS_INFO("\033[33m[WayPointDetectDone] servo_complete.data: %d\033[0m", servo_complete.data);
                 // down_flag = false;
-                align_height = 1.2;
+                align_height = external_mission_mode_
+                    ? external_standard_recovery_setpoint_height_ : 1.2;
                 const double recovery_height = external_mission_mode_
                     ? external_recovery_height_ : 1.0;
                 if(uav_pose.pose.position.z >= recovery_height){
@@ -2349,7 +2363,8 @@ bool LLController::WayPointDetectDone()
                     resetDropState();   // 重置投递状态
                     drop_complete = false;
                     servo_complete.data = false;
-                    align_height = 1.2;
+                    align_height = external_mission_mode_
+                        ? external_standard_recovery_setpoint_height_ : 1.2;
                     time_temp = 0;
                     detect_point_counter++;
                     // drop_time_flag = false;
@@ -3210,7 +3225,8 @@ bool LLController::CrossDetectionDone() {
             if(servo_complete.data){
                 ROS_INFO("\033[33m[CrossDetectionDone] servo_complete.data: %d\033[0m", servo_complete.data);
                 down_flag = false;
-                align_height = 1.15;
+                align_height = external_mission_mode_
+                    ? external_cross_recovery_setpoint_height_ : 1.15;
                 const double recovery_height = external_mission_mode_
                     ? external_recovery_height_ : 0.95;
                 if(uav_pose.pose.position.z >= recovery_height){
@@ -3300,8 +3316,9 @@ void LLController::cleanupAfterCrossDrop() {
     current_task_type = MAIN_MISSION;
     mission_interrupted = false;
 
-    // 重置高度
-    align_height = 1.2;
+    // 重置高度；外部任务回到 YAML 配置的下一次对准高度。
+    align_height = external_mission_mode_
+        ? external_alignment_capture_height_ : 1.2;
 
     ROS_INFO("\033[32m[CleanupAfterCrossDrop] All states cleaned up after cross drop, ready for next mission\033[0m");
 }

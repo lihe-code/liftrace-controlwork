@@ -13,6 +13,8 @@ CONTROL_CPP = ROOT / "src/patrol_control/src/patrol_control.cpp"
 CONFIG = ROOT / "src/patrol_control/config/patrol_toudi4_new_vision.yaml"
 TOUDI3_CONFIG = ROOT / "src/patrol_control/config/patrol_toudi3_new_vision.yaml"
 BRIDGE_CONFIG = ROOT / "src/uav_mission/config/vcl06_planner_bridge.yaml"
+MINIMAL_DELIVERY_CONFIG = (
+    ROOT / "src/uav_mission/config/minimal_delivery_test.yaml")
 LAUNCH = ROOT / "src/patrol_control/launch/toudi3_full_competition_sim_new_vision.launch"
 FULL_LAUNCH = ROOT / "src/patrol_control/launch/patrol_full_competition_sim.launch"
 CONTROL_LAUNCH = ROOT / "src/patrol_control/launch/patrol_control_px4_sim.launch"
@@ -116,6 +118,23 @@ class NewVisionConfigTest(unittest.TestCase):
             'current_align_mode_ == "drop_cross" && uav_drop_ready_',
             source,
         )
+
+    def test_minimal_delivery_owns_all_external_recovery_heights(self):
+        source = CONTROL_CPP.read_text(encoding="utf-8")
+        config = yaml.safe_load(
+            MINIMAL_DELIVERY_CONFIG.read_text(encoding="utf-8"))
+        vision = config["uav_vision"]
+        bridge = config["navigation"]["planner_bridge"]["target"]
+
+        self.assertEqual(vision["recovery_height"], 0.85)
+        self.assertEqual(bridge["recovery_height"], vision["recovery_height"])
+        self.assertEqual(vision["standard_recovery_setpoint_height"], 1.20)
+        self.assertEqual(vision["cross_recovery_setpoint_height"], 1.15)
+        self.assertIn(
+            '"uav_vision/standard_recovery_setpoint_height", 1.20', source)
+        self.assertIn(
+            '"uav_vision/cross_recovery_setpoint_height", 1.15', source)
+        self.assertNotIn("align_height = 1.15;", source)
 
     def test_new_vision_launch_passes_camera_model_and_map_parameters(self):
         launch = LAUNCH.read_text(encoding="utf-8")
