@@ -48,6 +48,16 @@ uav_vision:
   pixel_to_body_matrix: [-1.0, 0.0, 0.0, 1.0]
 drop_system:
   enable_drop: true          # 投放机构开启
+  # 三个投递舵机对应的水平投放位槽补偿 [x, y]，单位 m、camera_init 坐标系
+  slot_offsets:
+    - [-0.07, 0.0]
+    - [0.0, -0.07]
+    - [0.0, 0.07]
+  # 红十字/动态靶使用的三槽补偿
+  dynamic_slot_offsets:
+    - [-0.10, 0.0]
+    - [0.0, -0.10]
+    - [0.0, 0.10]
 
 # ---- Fast-LIO 调参（fastlio_mapping 从全局命名空间读取）----
 feature_extract_enable: true

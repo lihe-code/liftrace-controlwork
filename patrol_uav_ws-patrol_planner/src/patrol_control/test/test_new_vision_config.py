@@ -125,11 +125,17 @@ class NewVisionConfigTest(unittest.TestCase):
             MINIMAL_DELIVERY_CONFIG.read_text(encoding="utf-8"))
         vision = config["uav_vision"]
         bridge = config["navigation"]["planner_bridge"]["target"]
+        drop = config["drop_system"]
 
         self.assertEqual(vision["recovery_height"], 0.85)
         self.assertEqual(bridge["recovery_height"], vision["recovery_height"])
         self.assertEqual(vision["standard_recovery_setpoint_height"], 1.20)
         self.assertEqual(vision["cross_recovery_setpoint_height"], 1.15)
+        self.assertTrue(drop["enable_drop"])
+        self.assertEqual(drop["slot_offsets"], [
+            [-0.07, 0.0], [0.0, -0.07], [0.0, 0.07]])
+        self.assertEqual(drop["dynamic_slot_offsets"], [
+            [-0.10, 0.0], [0.0, -0.10], [0.0, 0.10]])
         self.assertIn(
             '"uav_vision/standard_recovery_setpoint_height", 1.20', source)
         self.assertIn(
