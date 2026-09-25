@@ -21,9 +21,16 @@ delivery:
   land_height: 0.05          # 降落高度
 
 # ---- 控制器全局参数（patrol_control 运行时 getParamCached 重读）----
-# 与走廊测试一致的低高度安全约束。
+# 初始/终止阶段保持 0.15 m 前视；任务启动后由 following_speed_profile 动态切换。
 px4_max_distance: 0.15
+# 快速巡航前视为 1.0 m，接纳上限需留出跟踪保护余量。
+external_planner_start_max_distance: 1.20
 external_planner_max_command_z: 2.0
+
+# traj_server 的初始前视；任务管理器会与 px4_max_distance 同步更新。
+traj_server:
+  traj_server:
+    target_dist: 0.15
 
 # ---- 投放相关参数 ----
 # patrol_control 收到投放指令后降落到 capture_height 执行释放，
@@ -93,18 +100,22 @@ freedom:
 # ---- Fast-Planner 动态限制（最终位于 /fast_planner_node/*）----
 # 低空走廊收紧，略高于走廊测试（搜索速度可以稍快一些）。
 fast_planner_node:
+  # 完整安全轨迹持续执行；只有局部轨迹、耗尽或跟踪误差过大才重规划。
+  fsm:
+    tracking_replan_distance: 0.45
+    min_replan_interval: 0.75
   manager:
-    max_vel: 1.00
+    max_vel: 1.20
     max_acc: 1.00
     clearance_threshold: 0.05
   search:
-    max_vel: 1.00
+    max_vel: 1.20
     max_acc: 1.00
   optimization:
-    max_vel: 1.00
+    max_vel: 1.20
     max_acc: 1.00
   bspline:
-    limit_vel: 1.00
+    limit_vel: 1.20
     limit_acc: 1.00
   sdf_map:
     ground_height: -0.2
@@ -129,6 +140,11 @@ navigation:
       # 与 uav_vision/recovery_height 保持一致，覆盖共享档案的 0.95 m。
       recovery_height: 0.85
   mission_manager:
+    # 前视距离不是承诺空速；它控制位置模式下 PX4 看到的目标误差。
+    following_speed_profile:
+      cruise_lead_m: 1.00       # SEARCH/RESUME 快速巡航
+      precision_lead_m: 0.40    # APPROACH 及普通 RETURN_HOME
+      corridor_lead_m: 0.15     # LAND/HOLD/ABORT；投递对准使用 0.40 m
     search:
       # 手动打点航线（仿照 corridor_waypoint_test.yaml 的 post_delivery_route 格式）
       # X 轴正前方，Y=0 中心线；所有航点 z 应等于 search_altitude。
